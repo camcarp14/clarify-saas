@@ -29,14 +29,13 @@ export default function AdminArea() {
         </nav>
         <main className="main fade-in">
           <Routes>
-            <Routes>
-              <Route path="/admin/orgs" element={<AdminOrgs />} />
-              <Route path="/admin/orgs/:id" element={<AdminOrgDetail />} />
-              <Route path="/admin/health" element={<AdminHealth />} />
-              <Route path="/admin/billing" element={<AdminBilling />} />
-              <Route path="/admin/audit" element={<AdminAudit />} />
-              <Route path="*" element={<Navigate to="/admin/orgs" replace />} />
-            </Routes>
+            <Route path="/admin/orgs" element={<AdminOrgs />} />
+            <Route path="/admin/orgs/:id" element={<AdminOrgDetail />} />
+            <Route path="/admin/health" element={<AdminHealth />} />
+            <Route path="/admin/billing" element={<AdminBilling />} />
+            <Route path="/admin/audit" element={<AdminAudit />} />
+            <Route path="*" element={<Navigate to="/admin/orgs" replace />} />
+          </Routes>
         </main>
       </div>
     </div>
