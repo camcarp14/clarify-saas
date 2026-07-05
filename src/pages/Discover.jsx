@@ -6,8 +6,17 @@ import { Pill } from '../components/ui'
 
 export default function Discover() {
   const [tab, setTab] = useState('places')
-  const { org, refreshOrg } = useAuth()
+  const { org, refreshOrg, supportView } = useAuth()
   const creditsLeft = org ? Math.max(0, org.monthly_credits - org.credits_used) : 0
+
+  if (supportView) {
+    return (
+      <div className="section" style={{ textAlign: 'center', padding: 40 }}>
+        <h3>Read-only in support view</h3>
+        <p className="muted" style={{ marginTop: 8 }}>Discovery spends this customer's credits, so it's disabled while impersonating. Their credit balance: {creditsLeft}.</p>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -35,7 +44,7 @@ const Tab = ({ id, tab, setTab, children }) => (
 function CandidateTable({ candidates, checked, setChecked, cols }) {
   const toggleAll = () => setChecked(checked.size === candidates.length ? new Set() : new Set(candidates.map((_, i) => i)))
   return (
-    <table className="plain" style={{ marginTop: 12 }}>
+    <div className="tablewrap"><table className="plain" style={{ marginTop: 12 }}>
       <thead>
         <tr>
           <th style={{ width: 30 }}><input type="checkbox" style={{ width: 'auto' }} checked={checked.size === candidates.length && candidates.length > 0} onChange={toggleAll} /></th>
@@ -52,7 +61,7 @@ function CandidateTable({ candidates, checked, setChecked, cols }) {
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   )
 }
 

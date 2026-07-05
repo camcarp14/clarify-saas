@@ -45,7 +45,7 @@ export default function Sequences() {
         <Empty title="No sequences yet" body="A good starter: email on day 0, LinkedIn note on day 3, email follow-up on day 7." />
       ) : (
         <div className="section" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="plain">
+          <div className="tablewrap"><table className="plain">
             <thead><tr><th>Sequence</th><th>Status</th><th>Active</th><th>Replied</th><th>Finished</th><th /></tr></thead>
             <tbody>
               {list.map((s) => (
@@ -66,7 +66,7 @@ export default function Sequences() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
     </div>

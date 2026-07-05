@@ -35,7 +35,7 @@ export default function AdminAudit() {
       </div>
       <p className="muted">Last 200 entries. Every admin write in the product lands here — no exceptions.</p>
       {shown.length === 0 && <Empty title="Nothing logged yet">Admin actions will appear here the moment one happens.</Empty>}
-      <table className="plain" style={{ marginTop: 12 }}>
+      <div className="tablewrap"><table className="plain" style={{ marginTop: 12 }}>
         <tbody>
           {shown.map((r) => (
             <tr key={r.id}>
@@ -48,7 +48,7 @@ export default function AdminAudit() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

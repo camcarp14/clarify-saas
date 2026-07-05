@@ -12,6 +12,7 @@ import Leads from './pages/Leads';
 import Inbox from './pages/Inbox';
 import Sequences from './pages/Sequences';
 import Settings from './pages/Settings';
+import ResetPassword from './pages/ResetPassword';
 import { Spinner } from './components/ui';
 
 // Code-split: customers never download the admin console's JS.
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="/sequences" element={<Sequences />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/reset" element={<ResetPassword />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Shell>

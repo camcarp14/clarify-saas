@@ -148,9 +148,11 @@ export default function Dashboard() {
             </select>
           )}>
           {!conns.length ? (
-            <Empty title="No Google Ads account connected yet">
-              Connect one and Clarify pulls your last 30 days immediately.
-              <div style={{ marginTop: 14 }}><Link className="btn primary" style={{ textDecoration: 'none' }} to="/onboarding">Connect Google Ads</Link></div>
+            <Empty title={supportView ? "This customer hasn't connected Google Ads yet" : 'No Google Ads account connected yet'}>
+              {supportView
+                ? 'Their audit, alerts, and spend views will light up once they connect an account.'
+                : 'Connect one and Clarify pulls your last 30 days immediately.'}
+              {!supportView && <div style={{ marginTop: 14 }}><Link className="btn primary" style={{ textDecoration: 'none' }} to="/onboarding">Connect Google Ads</Link></div>}
             </Empty>
           ) : adsLoading ? <Spinner /> : !snaps.length ? (
             <Empty title="First sync is running">Give it a couple of minutes, then refresh. Your last 30 days are on the way.</Empty>
@@ -184,7 +186,9 @@ export default function Dashboard() {
                       <XAxis dataKey="d" tickFormatter={dayLabel} tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} />
                       <YAxis yAxisId="spend" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} width={46} />
                       <YAxis yAxisId="conv" orientation="right" tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} width={30} />
-                      <Tooltip labelFormatter={dayLabel} formatter={(v, name) => name === 'Spend' ? [usdN(v), name] : [v, name]} />
+                      <Tooltip labelFormatter={dayLabel} formatter={(v, name) => name === 'Spend' ? [usdN(v), name] : [v, name]}
+                        contentStyle={{ background: '#0f1119', border: '1px solid rgba(255,255,255,.14)', borderRadius: 10, color: '#f4f2ea' }}
+                        labelStyle={{ color: '#a6aabc' }} itemStyle={{ color: '#f4f2ea' }} />
                       <Area yAxisId="spend" type="monotone" dataKey="spend" name="Spend" stroke="var(--clarity)" fill="var(--clarity-soft)" strokeWidth={2} />
                       <Line yAxisId="conv" type="monotone" dataKey="conv" name="Conversions" stroke="var(--info)" strokeWidth={2} dot={false} />
                     </ComposedChart>

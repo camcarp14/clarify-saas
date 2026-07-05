@@ -51,6 +51,18 @@ export default function Auth() {
         <button className="btn ghost" onClick={() => { setMode(mode === 'signup' ? 'login' : 'signup'); setMsg(null); }}>
           {mode === 'signup' ? 'Have an account? Sign in' : 'New here? Start a 14-day trial'}
         </button>
+        {mode === 'login' && (
+          <button className="showmath" style={{ alignSelf: 'flex-start' }} disabled={busy || !email}
+            title={!email ? 'Type your email above first' : undefined}
+            onClick={async () => {
+              setBusy(true); setMsg(null);
+              const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset` });
+              setBusy(false);
+              setMsg(error ? { warn: true, text: error.message } : { warn: false, text: `Reset link sent to ${email} — check your inbox.` });
+            }}>
+            Forgot password?
+          </button>
+        )}
         {mode === 'signup' && <div className="faint">No card required for the trial.</div>}
       </div>
     </div>

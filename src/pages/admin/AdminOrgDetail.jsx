@@ -19,6 +19,7 @@ export default function AdminOrgDetail() {
   const [note, setNote] = useState(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [invoices, setInvoices] = useState(null);
+  const [invErr, setInvErr] = useState(false);
 
   const load = useCallback(async () => {
     const [org, profiles, conns, comms, audits, alerts, leads, overdue, snaps] = await Promise.all([
@@ -48,7 +49,7 @@ export default function AdminOrgDetail() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    api(`admin-stripe?org_id=${id}`).then((r) => setInvoices(r.invoices || [])).catch(() => setInvoices([]));
+    api(`admin-stripe?org_id=${id}`).then((r) => setInvoices(r.invoices || [])).catch(() => { setInvoices([]); setInvErr(true); });
   }, [id]);
 
   const act = async (action, payload = {}, label = action) => {
@@ -130,8 +131,8 @@ export default function AdminOrgDetail() {
         </div>
         <div style={{ marginTop: 16 }}>
           <h3>Recent invoices</h3>
-          {invoices === null ? <Spinner /> : invoices.length === 0 ? <p className="muted">None on file.</p> : (
-            <table className="plain" style={{ marginTop: 6 }}>
+          {invoices === null ? <Spinner /> : invErr ? <p className="muted">Couldn't reach Stripe — either it isn't configured yet (STRIPE_SECRET_KEY) or the request failed.</p> : invoices.length === 0 ? <p className="muted">None on file.</p> : (
+            <div className="tablewrap"><table className="plain" style={{ marginTop: 6 }}>
               <tbody>
                 {invoices.map((i) => (
                   <tr key={i.id}>
@@ -143,7 +144,7 @@ export default function AdminOrgDetail() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       </div>
@@ -214,7 +215,7 @@ export default function AdminOrgDetail() {
       {/* ── Audits & alerts ── */}
       <div className="section">
         <h2>Audits & alerts</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
           <div>
             <h3>Recent audits</h3>
             {d.audits.length === 0 && <p className="muted">None yet.</p>}
@@ -252,7 +253,7 @@ export default function AdminOrgDetail() {
       {/* ── Users ── */}
       <div className="section">
         <h2>Users</h2>
-        <table className="plain">
+        <div className="tablewrap"><table className="plain">
           <tbody>
             {profiles.map((p) => (
               <tr key={p.id}>
@@ -274,7 +275,7 @@ export default function AdminOrgDetail() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       {/* ── Internal notes ── */}

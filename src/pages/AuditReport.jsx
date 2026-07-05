@@ -103,7 +103,7 @@ export default function AuditReport() {
       ) : (
         <>
           <div className="section" style={{ display: 'flex', gap: 22, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div className="score-ring" style={{ background: `conic-gradient(${ringColor} ${score * 3.6}deg, var(--paper) 0deg)` }}>
+            <div className="score-ring" style={{ background: `conic-gradient(${ringColor} ${score * 3.6}deg, rgba(255,255,255,.09) 0deg)` }}>
               <div style={{ background: 'var(--surface)', width: 84, height: 84, borderRadius: '50%', display: 'grid', placeItems: 'center' }}>{score}</div>
             </div>
             <div>

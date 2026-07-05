@@ -188,3 +188,39 @@ values, this propagated across the whole app from one edit. Six things the token
 Also swapped: the Google Fonts `<link>` in `index.html` (Inter + IBM Plex Mono in place of
 Instrument Sans + Spline Sans Mono — without this the CSS `font-family` names would
 silently fall back to system fonts).
+
+## Platform audit pass (customer + admin + connection + mobile)
+
+A deep audit of the whole platform, fixing what it found. Headline fix: **support view
+now shows the truth.** Previously, while an admin impersonated a customer, `org` in
+AuthContext was still the admin's *own* org — so Settings, the trial banner, and the
+credits meter all showed the admin's data, not the customer's. The context now loads the
+impersonated tenant's org row and exposes it as the effective org, so every page reads
+the right workspace. `refreshOrg` refreshes whichever org is active.
+
+Customer app: added a full **password reset flow** (Forgot password on the sign-in
+screen → email link → `/reset` page), which simply didn't exist. Dark-theme fallout
+fixed: the chart tooltip was still white-on-white (recharts defaults), and the audit
+score ring's empty track was invisible against the dark card.
+
+Admin console: the Stripe invoices card now distinguishes "no invoices" from "couldn't
+reach Stripe (not configured or request failed)" instead of silently showing an empty
+list either way; the audits/alerts grid collapses properly on narrow screens.
+
+Connection gaps closed: **Discover** (which spends the customer's credits) and
+**Onboarding** (where OAuth would bind the admin's own account, not the customer's) are
+now blocked in support view with plain-language explanations — every other page was
+already gated. The Dashboard's "Connect Google Ads" CTA hides during impersonation too.
+
+Mobile, both apps (shared classes, so one fix covers both): the nav rail becomes an
+app-style horizontal-scroll top bar under 820px instead of a multi-row wrap; every wide
+table (admin directory, audit trail, users, invoices, leads, sequences, discovery
+results) scrolls horizontally inside a `.tablewrap` instead of blowing out the page;
+inputs hold 16px on touch widths so iOS stops zooming the viewport on focus; banners and
+segmented controls wrap; `theme-color` meta matches the dark chrome.
+
+Honest limits: no live Supabase/Stripe/Google credentials exist in this environment, so
+runtime click-through remains the acceptance test — this pass is build-verified,
+schema-verified (every risky query column-checked against migrations), and
+contract-verified (every `api()` call has a matching function file). Google Ads is
+knowingly not yet connected; all Ads-dependent surfaces have graceful empty states.

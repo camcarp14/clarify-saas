@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Spinner } from '../components/ui';
+import { useAuth } from '../context/AuthContext';
 
 export default function Onboarding() {
+  const { supportView } = useAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const pick = params.get('pick');
@@ -37,6 +39,21 @@ export default function Onboarding() {
       navigate('/dashboard?connected=1');
     } catch (e) { setErr(e.message); setBusy(false); }
   };
+
+  if (supportView) {
+    return (
+      <div style={{ maxWidth: 560, margin: '0 auto' }}>
+        <div className="section">
+          <h2>Read-only in support view</h2>
+          <p className="muted" style={{ marginTop: 8 }}>
+            Connecting a Google Ads account here would attach it to the wrong workspace —
+            OAuth always binds to the signed-in account, not the customer being viewed.
+            Exit support view first, or have the customer connect it themselves.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 560, margin: '0 auto' }}>

@@ -73,7 +73,7 @@ export default function Leads() {
           action={<Link to="/discover" className="btn primary" style={{ display: 'inline-block' }}>Find leads</Link>} />
       ) : (
         <div className="section" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="plain">
+          <div className="tablewrap"><table className="plain">
             <thead><tr><th style={{ width: 56 }}>Heat</th><th>Lead</th><th>Contact</th><th>Status</th><th>Source</th><th>Added</th></tr></thead>
             <tbody>
               {shown.map((l) => (
@@ -87,7 +87,7 @@ export default function Leads() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
       {sel && <LeadDrawer lead={sel} onClose={() => { setSel(null); load() }} readOnly={supportView} />}
