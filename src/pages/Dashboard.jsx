@@ -288,7 +288,7 @@ export default function Dashboard() {
               {outreach.recent.length > 0 && (
                 <div style={{ marginTop: 14 }}>
                   <h3>Recent activity</h3>
-                  <table className="plain" style={{ marginTop: 6 }}>
+                  <div className="tablewrap"><table className="plain" style={{ marginTop: 6 }}>
                     <tbody>
                       {outreach.recent.map((r) => (
                         <tr key={r.id}>
@@ -299,7 +299,7 @@ export default function Dashboard() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               )}
             </>

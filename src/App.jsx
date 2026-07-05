@@ -92,6 +92,9 @@ function Shell({ children }) {
   const navigate = useNavigate();
   const [viewAsName, setViewAsName] = useState('');
   const [unread, setUnread] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+  const close = () => setMenuOpen(false);
 
   useEffect(() => {
     if (supportView && viewAsOrg) {
@@ -119,24 +122,32 @@ function Shell({ children }) {
   return (
     <div className="shell">
       <nav className="rail">
-        <div className="brand">Clari<em>fy</em></div>
-        <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'active' : '')}>Today</NavLink>
-        <div className="rail-label">Paid search</div>
-        <NavLink to="/audit" className={({ isActive }) => (isActive ? 'active' : '')}>Audit</NavLink>
-        <NavLink to="/alerts" className={({ isActive }) => (isActive ? 'active' : '')}>Alerts</NavLink>
-        <div className="rail-label">Outreach</div>
-        <NavLink to="/discover" className={({ isActive }) => (isActive ? 'active' : '')}>Discover</NavLink>
-        <NavLink to="/leads" className={({ isActive }) => (isActive ? 'active' : '')}>Leads</NavLink>
-        <NavLink to="/inbox" className={({ isActive }) => (isActive ? 'active' : '')}>
-          Inbox{unread > 0 && <span className="pill replied" style={{ marginLeft: 6 }}>{unread}</span>}
-        </NavLink>
-        <NavLink to="/sequences" className={({ isActive }) => (isActive ? 'active' : '')}>Sequences</NavLink>
-        <div className="rail-label">Workspace</div>
-        <NavLink to="/settings" className={({ isActive }) => (isActive ? 'active' : '')}>Settings</NavLink>
-        {isAdmin && <NavLink to="/admin/orgs" className={({ isActive }) => (isActive ? 'active' : '')}>Admin console</NavLink>}
-        <div className="spacer" />
-        <div className="faint" style={{ padding: '0 10px' }}>{profile?.email}</div>
-        <a href="#signout" onClick={(e) => { e.preventDefault(); signOut(); }}>Sign out</a>
+        <div className="rail-bar">
+          <div className="brand">Clari<em>fy</em></div>
+          <button className="rail-toggle" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+            {menuOpen ? '✕' : '☰'}
+          </button>
+        </div>
+        <div className={`rail-links${menuOpen ? ' open' : ''}`}>
+          <NavLink to="/dashboard" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Today</NavLink>
+          <div className="rail-label">Paid search</div>
+          <NavLink to="/audit" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Audit</NavLink>
+          <NavLink to="/alerts" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Alerts</NavLink>
+          <div className="rail-label">Outreach</div>
+          <NavLink to="/discover" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Discover</NavLink>
+          <NavLink to="/leads" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Leads</NavLink>
+          <NavLink to="/inbox" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>
+            Inbox{unread > 0 && <span className="pill replied" style={{ marginLeft: 6 }}>{unread}</span>}
+          </NavLink>
+          <NavLink to="/sequences" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Sequences</NavLink>
+          <div className="rail-label">Workspace</div>
+          <NavLink to="/settings" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Settings</NavLink>
+          {isAdmin && <NavLink to="/admin/orgs" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Admin console</NavLink>}
+          <div className="spacer" />
+          <div className="faint" style={{ padding: '0 10px' }}>{profile?.email}</div>
+          <a href="#signout" onClick={(e) => { e.preventDefault(); close(); signOut(); }}>Sign out</a>
+        </div>
+        {menuOpen && <div className="rail-backdrop" onClick={close} />}
       </nav>
       <main className="main fade-in">
         {supportView && (

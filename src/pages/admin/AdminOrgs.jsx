@@ -143,7 +143,7 @@ export default function AdminOrgs() {
       {rows === null ? <Spinner /> : rows.length === 0 ? (
         <div className="section" style={{ textAlign: 'center', padding: 32 }}><p className="muted">No workspaces match.</p></div>
       ) : (
-        <div className="section" style={{ padding: 0, overflowX: 'auto' }}>
+        <div className="section tablewrap" style={{ padding: 0 }}>
           <table className="plain" style={{ margin: 0 }}>
             <thead>
               <tr>

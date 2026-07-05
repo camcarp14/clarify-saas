@@ -1,4 +1,5 @@
-import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminOrgs from './AdminOrgs';
 import AdminOrgDetail from './AdminOrgDetail';
@@ -10,22 +11,34 @@ import AdminAudit from './AdminAudit';
 // nav, and an unmissable ADMIN strip so a screen-share never confuses the two.
 export default function AdminArea() {
   const { isAdmin, profile, signOut } = useAuth();
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  const close = () => setMenuOpen(false);
   return (
     <div>
       <div className="admin-top">CLARIFY ADMIN — internal console. Every action here is logged.</div>
       <div className="shell">
         <nav className="rail">
-          <div className="brand">Clari<em>fy</em> <span className="faint" style={{ fontSize: 11 }}>admin</span></div>
-          <NavLink to="/admin/orgs" className={({ isActive }) => (isActive ? 'active' : '')}>Organizations</NavLink>
-          <NavLink to="/admin/health" className={({ isActive }) => (isActive ? 'active' : '')}>System health</NavLink>
-          <NavLink to="/admin/billing" className={({ isActive }) => (isActive ? 'active' : '')}>Billing</NavLink>
-          <NavLink to="/admin/audit" className={({ isActive }) => (isActive ? 'active' : '')}>Audit trail</NavLink>
-          <div className="rail-label">Your workspace</div>
-          <NavLink to="/dashboard">Customer app →</NavLink>
-          <div className="spacer" />
-          <div className="faint" style={{ padding: '0 10px' }}>{profile?.email}</div>
-          <a href="#signout" onClick={(e) => { e.preventDefault(); signOut(); }}>Sign out</a>
+          <div className="rail-bar">
+            <div className="brand">Clari<em>fy</em> <span className="faint" style={{ fontSize: 11 }}>admin</span></div>
+            <button className="rail-toggle" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+              {menuOpen ? '✕' : '☰'}
+            </button>
+          </div>
+          <div className={`rail-links${menuOpen ? ' open' : ''}`}>
+            <NavLink to="/admin/orgs" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Organizations</NavLink>
+            <NavLink to="/admin/health" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>System health</NavLink>
+            <NavLink to="/admin/billing" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Billing</NavLink>
+            <NavLink to="/admin/audit" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Audit trail</NavLink>
+            <div className="rail-label">Your workspace</div>
+            <NavLink to="/dashboard" onClick={close}>Customer app →</NavLink>
+            <div className="spacer" />
+            <div className="faint" style={{ padding: '0 10px' }}>{profile?.email}</div>
+            <a href="#signout" onClick={(e) => { e.preventDefault(); close(); signOut(); }}>Sign out</a>
+          </div>
+          {menuOpen && <div className="rail-backdrop" onClick={close} />}
         </nav>
         <main className="main fade-in">
           <Routes>

@@ -248,3 +248,22 @@ wrapper, stacking two cards' worth of borders and padding (roughly 130px of dead
 before any text). Gave `Empty` an opt-in `compact` prop that drops the redundant
 chrome, applied it only at those three nested call sites, and left the other eight
 exactly as they were.
+
+## Mobile nav redesign (hamburger menu) + two missed tables
+
+Replaced the horizontal-scrolling nav bar with a proper collapsed bar + dropdown menu
+on both the customer app and admin console, sharing one CSS implementation (the
+`display: contents` trick means the new wrapper divs are invisible to desktop's
+existing layout — the working sidebar is untouched, only the mobile breakpoint
+changes). Tapping the hamburger opens a full-width dropdown listing every link at
+once, closes automatically on navigation (`useEffect` on `location.pathname`, so it
+closes correctly for clicks, back/forward, or programmatic navigation alike), and
+closes on tapping the backdrop.
+
+Also found two tables that escaped the earlier table-wrap pass — a real gap, not
+cosmetic: **AdminOrgs.jsx** (the organizations directory — a 12-column table using
+its own ad-hoc `overflowX: auto` instead of the standard `.tablewrap`, and the one
+actually responsible for the whole-page-stretches-right symptom) and Dashboard's
+outreach activity table, wrapped for consistency even though its 4 columns made it a
+low risk. Both now use the same tested `.tablewrap` pattern as every other table in
+the app.
