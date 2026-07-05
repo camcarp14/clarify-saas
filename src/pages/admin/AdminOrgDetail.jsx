@@ -312,7 +312,7 @@ function DangerZone({ org, busy, act, onCanceled, setNote, navigate }) {
   };
 
   const Item = ({ id, title, desc, cta, onGo, disabled, disabledWhy }) => (
-    <div className="row-between" style={{ padding: '12px 0', borderBottom: '1px solid rgba(200,74,58,0.15)', gap: 12, flexWrap: 'wrap' }}>
+    <div className="row-between" style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,107,107,0.15)', gap: 12, flexWrap: 'wrap' }}>
       <div style={{ maxWidth: 520 }}>
         <strong>{title}</strong>
         <p className="muted" style={{ margin: '3px 0 0' }}>{desc}</p>
@@ -325,7 +325,7 @@ function DangerZone({ org, busy, act, onCanceled, setNote, navigate }) {
           <button className="btn small ghost" onClick={() => { setConfirmFor(null); setTyped(''); }}>Never mind</button>
         </span>
       ) : (
-        <button className="btn small ghost" style={{ color: 'var(--act)', borderColor: 'rgba(200,74,58,0.4)' }} disabled={disabled || !!busy}
+        <button className="btn small ghost" style={{ color: 'var(--act)', borderColor: 'rgba(255,107,107,0.4)' }} disabled={disabled || !!busy}
           onClick={() => { setConfirmFor(id); setTyped(''); }}>{cta}</button>
       )}
     </div>
@@ -336,7 +336,7 @@ function DangerZone({ org, busy, act, onCanceled, setNote, navigate }) {
       <h2 style={{ color: 'var(--act)' }}>Danger zone</h2>
       <p className="muted">Each of these requires typing the workspace name, and each writes its own audit-trail entry.</p>
       {org.suspended_at ? (
-        <div className="row-between" style={{ padding: '12px 0', borderBottom: '1px solid rgba(200,74,58,0.15)' }}>
+        <div className="row-between" style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,107,107,0.15)' }}>
           <div><strong>Suspended {timeAgo(org.suspended_at)}</strong><p className="muted" style={{ margin: '3px 0 0' }}>They see a suspension screen at login.</p></div>
           <button className="btn small ghost" disabled={!!busy} onClick={() => act('unsuspend')}>Lift suspension</button>
         </div>

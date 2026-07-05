@@ -181,9 +181,9 @@ export default function Dashboard() {
                   <ResponsiveContainer>
                     <ComposedChart data={m.daily.slice(-range)} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke="var(--line)" vertical={false} />
-                      <XAxis dataKey="d" tickFormatter={dayLabel} tick={{ fontSize: 11, fill: '#8a9793' }} tickLine={false} axisLine={false} />
-                      <YAxis yAxisId="spend" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11, fill: '#8a9793' }} tickLine={false} axisLine={false} width={46} />
-                      <YAxis yAxisId="conv" orientation="right" tick={{ fontSize: 11, fill: '#8a9793' }} tickLine={false} axisLine={false} width={30} />
+                      <XAxis dataKey="d" tickFormatter={dayLabel} tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} />
+                      <YAxis yAxisId="spend" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} width={46} />
+                      <YAxis yAxisId="conv" orientation="right" tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} width={30} />
                       <Tooltip labelFormatter={dayLabel} formatter={(v, name) => name === 'Spend' ? [usdN(v), name] : [v, name]} />
                       <Area yAxisId="spend" type="monotone" dataKey="spend" name="Spend" stroke="var(--clarity)" fill="var(--clarity-soft)" strokeWidth={2} />
                       <Line yAxisId="conv" type="monotone" dataKey="conv" name="Conversions" stroke="var(--info)" strokeWidth={2} dot={false} />

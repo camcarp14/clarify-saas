@@ -145,3 +145,46 @@ full deactivation, that's a one-line `auth.admin` call to add. Suspension is enf
 the app layer (suspension screen at login); a determined user with a saved token could
 still hit the REST API read-only until token expiry — Supabase Auth-level banning is the
 hardening step if that ever matters.
+
+
+## Brand re-theme (matched to clarifypaidsearch.com)
+
+The app's design tokens were retargeted from the original light paper-and-teal palette to
+the marketing site's dark, blue-to-purple brand — same architecture, same components,
+new `:root` values doing almost all of the work (`src/styles.css`):
+
+| Role | Was | Now |
+|---|---|---|
+| Page background | `#f2f4f3` light mist | `#06070c` near-black |
+| Card surface | `#ffffff` | `#0f1119` opaque panel |
+| Primary text | `#10201c` dark pine | `#f4f2ea` warm off-white |
+| Brand accent | `#0e7c66` teal | `#5b7cff` blue → `#7a5cff` purple gradient |
+| Body font | Instrument Sans | Inter |
+| Mono font | Spline Sans Mono | IBM Plex Mono |
+| Display font | Bricolage Grotesque | *unchanged — already matched* |
+
+Because nearly every component reads color through these variables rather than hardcoding
+values, this propagated across the whole app from one edit. Six things the token swap
+*couldn't* fix automatically, handled by hand:
+- **Hover states** on the nav rail and inbox thread list previously matched hover-to-page-
+  background — correct when the page was the lightest surface, backwards now that it's the
+  darkest. Both now lighten on hover instead.
+- **The primary button** picked up the marketing site's signature blue→purple gradient,
+  restrained to a subtler glow than the marketing hero's CTA since this one gets clicked
+  dozens of times a session, not once.
+- **The admin console's warning strip** used to be `var(--ink)` as a dark bar in an
+  otherwise-light app — under the new palette `--ink` is the *light* text color, which
+  would've made the strip invisible. It's gold-on-black now, reading as an unmistakable
+  caution signal instead of quietly breaking.
+- **Three chart-axis label colors** in `Dashboard.jsx` were hardcoded (recharts needs a
+  literal color string for SVG fill, not a CSS variable) — updated by hand to match.
+- **Three danger-zone accent colors** in `AdminOrgDetail.jsx` were hardcoded to an
+  approximate red instead of referencing `--act` — updated to the new red exactly.
+- **The login screen** gets the marketing hero's full radial-gradient glow as a brand
+  moment; the dense working app (rail + main) stays flat and calm on purpose — a
+  multi-hour-a-day interface shouldn't fight a background gradient for attention the way
+  a once-per-visit hero section can.
+
+Also swapped: the Google Fonts `<link>` in `index.html` (Inter + IBM Plex Mono in place of
+Instrument Sans + Spline Sans Mono — without this the CSS `font-family` names would
+silently fall back to system fonts).
