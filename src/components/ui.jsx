@@ -68,9 +68,12 @@ export function Spinner({ label = 'Loading…' }) {
   return <div className="muted" style={{ padding: 32, textAlign: 'center' }}>{label}</div>;
 }
 
-export function Empty({ title, children, body, action }) {
+export function Empty({ title, children, body, action, compact }) {
+  // compact: for use inside an already-bordered .section (e.g. Dashboard's
+  // collapsible cards) — skips the redundant card-in-a-card chrome and padding
+  // that otherwise stacks up to ~130px of dead space before any text appears.
   return (
-    <div className="section" style={{ textAlign: 'center', padding: 40 }}>
+    <div className={compact ? undefined : 'section'} style={{ textAlign: 'center', padding: compact ? '8px 12px 20px' : 40 }}>
       <h3>{title}</h3>
       <div className="muted" style={{ marginTop: 8, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>{children || body}</div>
       {action && <div style={{ marginTop: 14 }}>{action}</div>}

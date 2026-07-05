@@ -224,3 +224,27 @@ runtime click-through remains the acceptance test — this pass is build-verifie
 schema-verified (every risky query column-checked against migrations), and
 contract-verified (every `api()` call has a matching function file). Google Ads is
 knowingly not yet connected; all Ads-dependent surfaces have graceful empty states.
+
+## Mobile fix pass (from real device screenshots)
+
+Two real bugs, found by actually looking at phone screenshots rather than assuming the
+mobile CSS layer from the audit pass was sufficient:
+
+**The gap above the admin nav bar.** `.shell` has `min-height: 100vh` — correct on
+desktop, where it keeps the sidebar looking intentional even on short pages. On mobile,
+once the shell becomes a single-column grid, that same min-height forces CSS Grid's
+auto-sized rows to stretch and absorb whatever space is left over, inflating the rail's
+own row height and vertically centering its short nav content within it — a visible gap
+above the links. It didn't show up on the customer app because that page's content
+already exceeds one screen; it was obvious on the admin console's shorter pages, where
+there was real leftover space to distribute. Fixed by giving the mobile shell
+`min-height: 0; align-content: start` — rows now pack at their natural size regardless
+of viewport height.
+
+**The oversized "no Google Ads connected" card.** `Empty` renders its own bordered
+`.section` with 40px padding — correct when used standalone (8 of its 11 call sites
+across the app). But Dashboard's three uses nest it *inside* another `.section`
+wrapper, stacking two cards' worth of borders and padding (roughly 130px of dead space
+before any text). Gave `Empty` an opt-in `compact` prop that drops the redundant
+chrome, applied it only at those three nested call sites, and left the other eight
+exactly as they were.

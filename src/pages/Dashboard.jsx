@@ -148,14 +148,14 @@ export default function Dashboard() {
             </select>
           )}>
           {!conns.length ? (
-            <Empty title={supportView ? "This customer hasn't connected Google Ads yet" : 'No Google Ads account connected yet'}>
+            <Empty title={supportView ? "This customer hasn't connected Google Ads yet" : 'No Google Ads account connected yet'} compact>
               {supportView
                 ? 'Their audit, alerts, and spend views will light up once they connect an account.'
                 : 'Connect one and Clarify pulls your last 30 days immediately.'}
               {!supportView && <div style={{ marginTop: 14 }}><Link className="btn primary" style={{ textDecoration: 'none' }} to="/onboarding">Connect Google Ads</Link></div>}
             </Empty>
           ) : adsLoading ? <Spinner /> : !snaps.length ? (
-            <Empty title="First sync is running">Give it a couple of minutes, then refresh. Your last 30 days are on the way.</Empty>
+            <Empty title="First sync is running" compact>Give it a couple of minutes, then refresh. Your last 30 days are on the way.</Empty>
           ) : (
             <>
               <div className="faint" style={{ marginBottom: 4 }}>
@@ -240,7 +240,7 @@ export default function Dashboard() {
         <Section id="pipeline" title="Outreach pipeline"
           right={<span className="faint mono">{creditsLeft} discovery credits left</span>}>
           {!outreach ? <Spinner /> : !outreach.total && !outreach.tasks.length ? (
-            <Empty title="No pipeline yet">
+            <Empty title="No pipeline yet" compact>
               Discover leads, put them in a sequence, and this becomes the other half of your morning.
               <div style={{ marginTop: 14 }}><Link className="btn primary" style={{ textDecoration: 'none' }} to="/discover">Find leads</Link></div>
             </Empty>
