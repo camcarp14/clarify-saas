@@ -76,6 +76,7 @@ input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 2px 
     background: var(--surface); border-bottom: 1px solid var(--line);
     padding: 8px 14px 18px; max-height: calc(100vh - 60px); overflow-y: auto;
     box-shadow: 0 16px 32px rgba(0,0,0,.4);
+    z-index: 46;
   }
   .rail-links.open { display: flex !important; }
   .rail-links a, .rail-links .rail-label { padding: 12px 10px; }

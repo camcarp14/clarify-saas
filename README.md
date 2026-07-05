@@ -286,3 +286,15 @@ Found the identical bug shape in one more place while looking for it — the **I
 page's 300px+content two-column grid had the same unguarded `1fr`. Fixed the same
 way pre-emptively, both desktop and its mobile single-column collapse, rather than
 waiting for it to surface as a separate report.
+
+## Hamburger menu fix: the dropdown had no z-index
+
+The menu wasn't broken visually — it was broken in stacking order. `.rail-backdrop`
+had an explicit `z-index: 39`; `.rail-links` (the dropdown itself) had none, which
+means its z-index computed to `auto`. Per CSS stacking rules, a sibling with an
+explicit z-index always paints above one with `auto`, regardless of which one comes
+later in the markup — so the semi-transparent backdrop was rendering on top of the
+menu the entire time, both dimming it (the "haze") and intercepting every tap before
+it reached the links underneath. Added `z-index: 46` to `.rail-links`, above the
+backdrop, on both the customer app and admin console (shared CSS, one fix covers
+both).
