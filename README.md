@@ -267,3 +267,22 @@ actually responsible for the whole-page-stretches-right symptom) and Dashboard's
 outreach activity table, wrapped for consistency even though its 4 columns made it a
 low risk. Both now use the same tested `.tablewrap` pattern as every other table in
 the app.
+
+## Root-cause fix: the actual reason admin still overflowed on mobile
+
+The hamburger-menu and table-wrap fixes were real but incomplete — they fixed
+symptoms while leaving the actual cause in place. `.shell` is a CSS Grid with a
+bare `1fr` track for `.main`. That matters because a bare `1fr` track has an
+implicit *minimum* size based on its content's intrinsic width, not 0 — Grid doesn't
+know to let it shrink below that unless told to. So even with `.tablewrap` correctly
+scrolling its own table internally, the grid *track itself* was still sizing to
+accommodate that table's full natural width, and dragging the whole page along with
+it. This is a well-known category of Grid/Flexbox bug; the standard fix is
+`minmax(0, 1fr)` instead of a bare `1fr`, plus an explicit `min-width: 0` on the
+grid item itself as a second line of defense. Applied to `.shell` (both the desktop
+216px+content layout and the mobile single-column layout) and `.main`.
+
+Found the identical bug shape in one more place while looking for it — the **Inbox**
+page's 300px+content two-column grid had the same unguarded `1fr`. Fixed the same
+way pre-emptively, both desktop and its mobile single-column collapse, rather than
+waiting for it to surface as a separate report.
