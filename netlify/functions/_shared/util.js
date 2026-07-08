@@ -1,9 +1,16 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
+// ---------- Supabase config ----------
+// The frontend mints sessions against VITE_SUPABASE_URL. Functions MUST verify
+// against that same project, so we prefer the VITE_ values when present — this
+// makes a client/function project mismatch structurally impossible for url+anon.
+const SUPA_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPA_ANON = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
 // ---------- Supabase clients ----------
 function admin() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  return createClient(SUPA_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
 }
@@ -12,14 +19,14 @@ function admin() {
 // Throws loudly if the function environment is missing its Supabase config — without
 // this, a scope/env mistake in Netlify masquerades as "Not signed in" for every user.
 async function getCaller(event) {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'].filter((k) => !process.env[k]);
-    throw new Error(`Function env is missing ${missing.join(', ')} — in Netlify, set the variable scope to include "Functions" (or All), then redeploy.`);
+  if (!SUPA_URL || !SUPA_ANON || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const missing = [!SUPA_URL && 'SUPABASE_URL/VITE_SUPABASE_URL', !SUPA_ANON && 'SUPABASE_ANON_KEY/VITE_SUPABASE_ANON_KEY', !process.env.SUPABASE_SERVICE_ROLE_KEY && 'SUPABASE_SERVICE_ROLE_KEY'].filter(Boolean);
+    throw new Error(`Function env is missing ${missing.join(', ')} — set it in Netlify (scope must include Functions), then redeploy.`);
   }
   const auth = event.headers.authorization || event.headers.Authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) return null;
-  const anon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+  const anon = createClient(SUPA_URL, SUPA_ANON, {
     auth: { persistSession: false },
   });
   const { data, error } = await anon.auth.getUser(token);

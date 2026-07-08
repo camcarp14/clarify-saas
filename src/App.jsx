@@ -140,7 +140,8 @@ function Shell({ children }) {
         <div className={`rail-links${menuOpen ? ' open' : ''}`}>
           <NavLink to="/dashboard" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Today</NavLink>
           <div className="rail-label">Search</div>
-          <NavLink to="/audit" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Audit</NavLink>
+          <NavLink to="/audit" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Search</NavLink>
+          <NavLink to="/playbook" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Playbook</NavLink>
           <NavLink to="/alerts" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Alerts</NavLink>
           <div className="rail-label">Outreach</div>
           <NavLink to="/discover" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Discover</NavLink>

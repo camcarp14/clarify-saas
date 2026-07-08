@@ -4,10 +4,13 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const host = (u) => { try { return new URL(u).host; } catch { return null; } };
+const SUPA_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPA_ANON = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
 exports.handler = async () => {
   const out = {
     context: process.env.CONTEXT || null,
+    effective_url_host: host(SUPA_URL),
     supabase_url_present: !!process.env.SUPABASE_URL,
     supabase_url_host: host(process.env.SUPABASE_URL),
     vite_supabase_url_host: host(process.env.VITE_SUPABASE_URL),
@@ -32,18 +35,18 @@ exports.handler = async () => {
 
   // Does the anon key actually work against this URL? A garbage token should come
   // back "invalid JWT" (key+url good); network/apikey errors mean they're not.
-  if (out.supabase_url_present && out.anon_key_present) {
+  if (SUPA_URL && SUPA_ANON) {
     try {
-      const anon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+      const anon = createClient(SUPA_URL, SUPA_ANON, { auth: { persistSession: false } });
       const { error } = await anon.auth.getUser('not-a-real-token');
       out.anon_key_works = error ? (/jwt|token|invalid|malformed/i.test(error.message) ? true : `error: ${error.message}`) : true;
     } catch (e) { out.anon_key_works = `threw: ${String(e.message || e).slice(0, 140)}`; }
   }
 
   // Service key: one trivial RLS-bypassing read.
-  if (out.supabase_url_present && out.service_key_present) {
+  if (SUPA_URL && out.service_key_present) {
     try {
-      const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+      const admin = createClient(SUPA_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
       const { error } = await admin.from('profiles').select('id').limit(1);
       out.service_key_works = error ? `error: ${error.message}` : true;
     } catch (e) { out.service_key_works = `threw: ${String(e.message || e).slice(0, 140)}`; }
