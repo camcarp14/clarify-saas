@@ -9,7 +9,13 @@ function admin() {
 }
 
 // Verify the caller's Supabase JWT and load their profile. Returns { user, profile } or null.
+// Throws loudly if the function environment is missing its Supabase config — without
+// this, a scope/env mistake in Netlify masquerades as "Not signed in" for every user.
 async function getCaller(event) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'].filter((k) => !process.env[k]);
+    throw new Error(`Function env is missing ${missing.join(', ')} — in Netlify, set the variable scope to include "Functions" (or All), then redeploy.`);
+  }
   const auth = event.headers.authorization || event.headers.Authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) return null;
