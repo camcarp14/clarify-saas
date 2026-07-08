@@ -19,6 +19,8 @@ export default function Settings() {
   const [params] = useSearchParams();
   const [conns, setConns] = useState(null);
   const [outreachConns, setOutreachConns] = useState(null);
+  const [prop, setProp] = useState(undefined);
+  const [gsc, setGsc] = useState(undefined);
   const [showSmtp, setShowSmtp] = useState(false);
   const [showSms, setShowSms] = useState(false);
   const [busy, setBusy] = useState(null);
@@ -46,6 +48,11 @@ export default function Settings() {
     if (!org?.id) return;
     supabase.from('google_ads_connections').select('*').eq('org_id', org.id).order('created_at')
       .then(({ data }) => setConns(data || []));
+    supabase.from('organic_properties').select('*').eq('org_id', org.id).order('created_at').limit(1)
+      .then(({ data }) => setProp(data?.[0] || null));
+    supabase.from('gsc_connections').select('*').eq('org_id', org.id).neq('status', 'revoked')
+      .order('created_at', { ascending: false }).limit(1)
+      .then(({ data }) => setGsc(data?.[0] || null));
   }, [org?.id]);
 
   const loadOutreachConns = () => {
@@ -153,6 +160,39 @@ export default function Settings() {
         })}
       </div>
       <p className="faint">Spending more than $75k/mo? <a href="mailto:cameron@clarifypaidsearch.com">Talk to us</a> — that's the tier where we work your account with you.</p>
+
+      <div className="section">
+        <div className="row-between">
+          <h2>Organic search sources</h2>
+          <Link to="/audit?tab=organic" className="btn small ghost" style={{ textDecoration: 'none' }}>Open organic audit</Link>
+        </div>
+        <div className="card row-between" style={{ marginTop: 10 }}>
+          <div>
+            <strong>Site crawl</strong>
+            <div className="faint">
+              {prop === undefined ? 'Checking…'
+                : !prop ? 'No site yet — add one from the Audit page\u2019s Organic tab.'
+                : `${prop.site_url.replace(/^https?:\/\//, '')} · ${prop.status === 'ready' ? `${prop.pages_crawled} pages, crawled ${timeAgo(prop.last_crawled_at)}` : prop.status}`}
+            </div>
+          </div>
+          {prop && <Pill v={prop.status} />}
+        </div>
+        <div className="card row-between" style={{ marginTop: 10 }}>
+          <div>
+            <strong>Google Search Console</strong>
+            <div className="faint">
+              {gsc === undefined ? 'Checking…'
+                : !gsc ? 'Not connected — real queries, positions, and the overlap view need this.'
+                : `${gsc.site_url || 'no property picked'} · ${gsc.status === 'active' ? `synced ${timeAgo(gsc.last_synced_at)}` : (gsc.status_detail || gsc.status)}`}
+            </div>
+          </div>
+          {gsc === null
+            ? <button className="btn small org" disabled={busy === 'google-oauth-start?product=gsc' || supportView} onClick={() => oauth('google-oauth-start?product=gsc')}>
+                {busy === 'google-oauth-start?product=gsc' ? 'Redirecting…' : 'Connect'}
+              </button>
+            : gsc && <Pill v={gsc.status} />}
+        </div>
+      </div>
 
       <div className="section">
         <div className="row-between">

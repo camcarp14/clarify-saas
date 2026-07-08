@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 
 export function Verdict({ tone = 'info', children }) {
   return (
@@ -105,3 +105,191 @@ export function MergeChips({ onPick }) {
     </div>
   );
 }
+
+// ---------- Clarify Search additions ----------
+
+// The instrument: an SVG score ring. channel: 'paid' | 'organic' | undefined (ink).
+export function Ring({ score, size = 96, channel, cap }) {
+  const s = Math.max(0, Math.min(100, Number(score ?? 0)));
+  const shown = useTween(score == null ? null : s);
+  const stroke = size >= 90 ? 7 : 6;
+  const r = (size - stroke) / 2;
+  const C = 2 * Math.PI * r;
+  const color = channel === 'paid' ? 'var(--paid)' : channel === 'organic' ? 'var(--org)' : channel === 'both' ? 'url(#ringgrad)' : 'var(--ink)';
+  return (
+    <div className="ring" style={{ width: size, height: size }} role="img" aria-label={`${cap || 'Score'}: ${score == null ? 'no data' : `${s} out of 100`}`}>
+      <svg width={size} height={size}>
+        <defs>
+          <linearGradient id="ringgrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#4fd694" /><stop offset="100%" stopColor="#f0a93b" />
+          </linearGradient>
+        </defs>
+        <circle className="track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} />
+        <circle className="fill" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke}
+          stroke={score == null ? 'var(--line)' : color} strokeLinecap="round"
+          strokeDasharray={C} strokeDashoffset={C - (C * s) / 100} />
+      </svg>
+      <div className="ring-num" style={{ fontSize: size * 0.3, color: score == null ? 'var(--ink-faint)' : 'var(--ink)' }}>
+        {score == null ? '—' : shown}
+      </div>
+      {cap && <div className="ring-cap">{cap}</div>}
+    </div>
+  );
+}
+
+// Channel tabs: Paid / Organic / Overlap — each carries its color in the underline.
+export function ChannelTabs({ value, onChange, items }) {
+  return (
+    <div className="chtabs" role="tablist" aria-label="Channel">
+      {items.map(({ k, label }) => (
+        <button key={k} role="tab" aria-selected={value === k}
+          className={`t-${k}${value === k ? ' on' : ''}`} onClick={() => onChange(k)}>
+          <span className="cdot" aria-hidden="true" />{label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Minimal markdown for AI briefs: ## headings, numbered + bulleted lists, **bold**.
+// Deliberately tiny — briefs are structured by our own prompt, not arbitrary md.
+function inlineBold(text, keyBase) {
+  const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((p, i) => {
+    const m = p.match(/^\*\*([^*]+)\*\*$/);
+    if (!m) return p;
+    const tag = m[1].match(/^\[(Paid|Organic|Both)\]$/i);
+    if (tag) return <span key={`${keyBase}-${i}`} className={`chtag ${tag[1].toLowerCase()}`}>{tag[1]}</span>;
+    return <strong key={`${keyBase}-${i}`}>{m[1]}</strong>;
+  });
+}
+export function Md({ text }) {
+  if (!text) return null;
+  const lines = String(text).split('\n');
+  const out = [];
+  let list = null; // { type: 'ol'|'ul', items: [] }
+  const flush = () => {
+    if (!list) return;
+    const L = list.type === 'ol' ? 'ol' : 'ul';
+    out.push(<L key={`l${out.length}`}>{list.items.map((it, i) => <li key={i}>{it}</li>)}</L>);
+    list = null;
+  };
+  lines.forEach((raw, idx) => {
+    const line = raw.trimEnd();
+    const h = line.match(/^#{2,3}\s+(.*)/);
+    const num = line.match(/^\d+[.)]\s+(.*)/);
+    const bul = line.match(/^[-*]\s+(.*)/);
+    if (h) { flush(); out.push(<h3 key={idx} className="brief-h">{inlineBold(h[1], idx)}</h3>); }
+    else if (num) { if (!list || list.type !== 'ol') { flush(); list = { type: 'ol', items: [] }; } list.items.push(inlineBold(num[1], idx)); }
+    else if (bul) { if (!list || list.type !== 'ul') { flush(); list = { type: 'ul', items: [] }; } list.items.push(inlineBold(bul[1], idx)); }
+    else if (line.trim()) { flush(); out.push(<p key={idx}>{inlineBold(line, idx)}</p>); }
+    else flush();
+  });
+  flush();
+  return <div>{out}</div>;
+}
+
+export const PillarTag = ({ pillar }) => pillar
+  ? <span className={`chtag ${pillar}`}>{pillar === 'ai' ? 'AI readiness' : pillar}</span>
+  : null;
+
+export function CopyBtn({ text, label = 'Copy' }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button className="btn small ghost" onClick={async () => {
+      try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1600); }
+      catch { window.prompt('Copy:', text); }
+    }}>{done ? 'Copied \u2713' : label}</button>
+  );
+}
+
+export function Artifact({ title, text, children }) {
+  return (
+    <div className="artifact">
+      <div className="a-head"><span className="t">{title}</span>{text != null && <CopyBtn text={text} />}</div>
+      {children || <pre>{text}</pre>}
+    </div>
+  );
+}
+
+// ---------- polish primitives ----------
+// rAF tween: numbers count to their value with ease-out. null renders nothing.
+export function useTween(target, dur = 700) {
+  const [v, setV] = useState(target ?? 0);
+  const fromRef = useRef(target ?? 0);
+  useEffect(() => {
+    if (target == null) return;
+    const from = fromRef.current ?? 0;
+    if (from === target) { setV(target); return; }
+    let raf; const t0 = performance.now();
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      setV(from + (target - from) * e);
+      if (p < 1) raf = requestAnimationFrame(step);
+      else fromRef.current = target;
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, dur]);
+  return target == null ? null : Math.round(v);
+}
+export function Num({ v, f = (x) => x.toLocaleString('en-US'), dur }) {
+  const shown = useTween(typeof v === 'number' ? v : null, dur);
+  if (shown == null) return <>—</>;
+  return <>{f(shown)}</>;
+}
+
+// skeletons: layout-matched loading, never a centered spinner for a page
+export const SkLine = ({ w }) => <div className={`sk sk-line${w ? ` ${w}` : ''}`} />;
+export function SkCard({ big = true }) {
+  return (
+    <div className="card">
+      <SkLine w="w40" />
+      {big && <div className="sk sk-big" />}
+      <SkLine w="w80" />
+    </div>
+  );
+}
+export function SkPage({ cards = 4, rings = 0 }) {
+  return (
+    <div className="pagefade">
+      <div style={{ display: 'flex', gap: 26, alignItems: 'center', flexWrap: 'wrap', margin: '6px 0 16px' }}>
+        {Array.from({ length: rings }).map((_, i) => (
+          <div key={i} className="sk sk-ring" style={{ width: 84, height: 84 }} />
+        ))}
+        {rings > 0 && <div style={{ flex: 1, minWidth: 180 }}><SkLine w="w60" /><SkLine w="w80" /></div>}
+      </div>
+      <div className="grid">{Array.from({ length: cards }).map((_, i) => <SkCard key={i} />)}</div>
+      <div className="section"><SkLine w="w40" /><SkLine /><SkLine w="w80" /><SkLine w="w60" /></div>
+    </div>
+  );
+}
+
+// smooth expand/collapse without measuring
+export function Expand({ open, children }) {
+  return <div className={`expand${open ? ' open' : ''}`} aria-hidden={!open}><div>{open ? children : null}</div></div>;
+}
+
+// toasts
+const ToastCtx = createContext(null);
+export function ToastProvider({ children }) {
+  const [items, setItems] = useState([]);
+  const push = (msg, opts = {}) => {
+    const id = Math.random().toString(36).slice(2);
+    setItems((xs) => [...xs, { id, msg, err: !!opts.err }]);
+    setTimeout(() => setItems((xs) => xs.map((x) => x.id === id ? { ...x, out: true } : x)), opts.ms || 2600);
+    setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== id)), (opts.ms || 2600) + 260);
+  };
+  return (
+    <ToastCtx.Provider value={push}>
+      {children}
+      <div className="toasts" aria-live="polite">
+        {items.map((t) => (
+          <div key={t.id} className={`toast${t.err ? ' err' : ''}${t.out ? ' out' : ''}`}><span className="tdot" />{t.msg}</div>
+        ))}
+      </div>
+    </ToastCtx.Provider>
+  );
+}
+export const useToast = () => useContext(ToastCtx) || (() => {});

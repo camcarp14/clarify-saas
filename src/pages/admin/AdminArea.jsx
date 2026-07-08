@@ -6,6 +6,7 @@ import AdminOrgDetail from './AdminOrgDetail';
 import AdminHealth from './AdminHealth';
 import AdminBilling from './AdminBilling';
 import AdminAudit from './AdminAudit';
+import AdminModel from './AdminModel';
 
 // The internal console shell — same layout primitives as the customer app, its own
 // nav, and an unmissable ADMIN strip so a screen-share never confuses the two.
@@ -22,7 +23,10 @@ export default function AdminArea() {
       <div className="shell">
         <nav className="rail">
           <div className="rail-bar">
-            <div className="brand">Clari<em>fy</em> <span className="faint" style={{ fontSize: 11 }}>admin</span></div>
+            <div className="brand">
+              <span className="bars" aria-hidden="true"><i /><i /></span>
+              <span className="word"><strong>Clarify</strong><span>ADMIN</span></span>
+            </div>
             <button className="rail-toggle" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
               {menuOpen ? '✕' : '☰'}
             </button>
@@ -32,6 +36,7 @@ export default function AdminArea() {
             <NavLink to="/admin/health" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>System health</NavLink>
             <NavLink to="/admin/billing" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Billing</NavLink>
             <NavLink to="/admin/audit" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Audit trail</NavLink>
+            <NavLink to="/admin/model" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Model tuning</NavLink>
             <div className="rail-label">Your workspace</div>
             <NavLink to="/dashboard" onClick={close}>Customer app →</NavLink>
             <div className="spacer" />
@@ -47,6 +52,7 @@ export default function AdminArea() {
             <Route path="/admin/health" element={<AdminHealth />} />
             <Route path="/admin/billing" element={<AdminBilling />} />
             <Route path="/admin/audit" element={<AdminAudit />} />
+            <Route path="/admin/model" element={<AdminModel />} />
             <Route path="*" element={<Navigate to="/admin/orgs" replace />} />
           </Routes>
         </main>

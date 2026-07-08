@@ -1,6 +1,7 @@
 // POST { connection_id } (Bearer auth) -> runs the deterministic audit engine on synced data
 const { getCaller, admin, json } = require('./_shared/util');
 const { runAudit } = require('./_shared/audit-engine');
+const { loadModelSettings } = require('./_shared/model-settings');
 
 exports.handler = async (event) => {
   const caller = await getCaller(event);
@@ -31,10 +32,11 @@ exports.handler = async (event) => {
     .select().single();
 
   try {
+    const settings = await loadModelSettings(db, conn.org_id);
     const result = runAudit({
       snapshots: snapshots || [], keywords: keywords || [],
       terms: terms || [], structure: acct?.[0]?.structure || {},
-    });
+    }, settings.weights);
     const rows = result.findings.map((x) => ({ ...x, audit_id: audit.id, org_id: conn.org_id }));
     await db.from('audit_findings').insert(rows);
     await db.from('audits').update({ status: 'complete', score: result.score, completed_at: new Date().toISOString() }).eq('id', audit.id);

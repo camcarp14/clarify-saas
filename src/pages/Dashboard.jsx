@@ -6,13 +6,14 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { usePref } from '../lib/usePref';
 import { usd, usdN, pct, num, dayLabel, timeAgo } from '../lib/format';
-import { Verdict, Chip, ShowMath, Spinner, Empty, Pill } from '../components/ui';
+import { Verdict, Chip, ShowMath, Spinner, Empty, Pill, Ring, Md, Num, SkPage, SkCard, SkLine } from '../components/ui';
 
 // The unified morning check. One page, two halves — ad health and pipeline —
 // with a focus toggle so either half can own the screen when that's your morning.
 export default function Dashboard() {
   const { effectiveOrgId, supportView, profile, org } = useAuth();
-  const [focus, setFocus] = usePref('today.focus', 'all');       // all | ads | outreach
+  const [focusPref, setFocus] = usePref('today.focus', 'all');   // all | search | outreach
+  const focus = focusPref === 'ads' ? 'search' : focusPref;      // legacy pref value maps forward
   const [range, setRange] = usePref('today.range', 30);          // chart window: 14 | 30
 
   // ---- paid search state ----
@@ -22,6 +23,27 @@ export default function Dashboard() {
   const [terms, setTerms] = useState([]);
   const [decisions, setDecisions] = useState({ findings: [], alerts: [] });
   const [adsLoading, setAdsLoading] = useState(true);
+
+  // ---- holistic search state (both channels) ----
+  const [inst, setInst] = useState({ paidScore: null, orgScore: null, gscClicks: null, pipeline: null });
+  useEffect(() => {
+    if (!effectiveOrgId) return;
+    (async () => {
+      const [pa, oa, gq] = await Promise.all([
+        supabase.from('audits').select('score').eq('org_id', effectiveOrgId).eq('status', 'complete')
+          .order('created_at', { ascending: false }).limit(1),
+        supabase.from('organic_audits').select('score, sub').eq('org_id', effectiveOrgId).eq('status', 'complete')
+          .order('created_at', { ascending: false }).limit(1),
+        supabase.from('gsc_query_stats').select('clicks').eq('org_id', effectiveOrgId).limit(1000),
+      ]);
+      setInst({
+        paidScore: pa.data?.[0]?.score ?? null,
+        orgScore: oa.data?.[0]?.score ?? null,
+        pipeline: oa.data?.[0]?.sub?.pipeline_value ?? null,
+        gscClicks: gq.data?.length ? Math.round(gq.data.reduce((t, r) => t + Number(r.clicks || 0), 0)) : null,
+      });
+    })();
+  }, [effectiveOrgId]);
 
   // ---- outreach state ----
   const [outreach, setOutreach] = useState(null);
@@ -96,7 +118,7 @@ export default function Dashboard() {
   const conn = conns?.find((c) => c.id === connId);
   const m = useMemo(() => compute(snaps, terms), [snaps, terms]);
   const showAds = focus !== 'outreach';
-  const showOutreach = focus !== 'ads';
+  const showOutreach = focus !== 'search';
   const c = outreach?.counts || {};
   const creditsLeft = Math.max(0, (org?.monthly_credits ?? 0) - (org?.credits_used ?? 0));
   const dateLine = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -109,7 +131,7 @@ export default function Dashboard() {
     decisions.findings.length ? { label: `${decisions.findings.length} audit ${decisions.findings.length === 1 ? 'finding' : 'findings'}`, to: '/audit', tone: 'watch' } : null,
   ].filter(Boolean);
 
-  if (conns === null) return <Spinner />;
+  if (conns === null) return <SkPage rings={2} cards={4} />;
 
   return (
     <div>
@@ -119,7 +141,7 @@ export default function Dashboard() {
           <div className="faint">{dateLine} · {org?.name}</div>
         </div>
         <div className="seg" role="tablist" aria-label="Focus">
-          {[['all', 'Everything'], ['ads', 'Paid search'], ['outreach', 'Outreach']].map(([k, label]) => (
+          {[['all', 'Everything'], ['search', 'Search'], ['outreach', 'Outreach']].map(([k, label]) => (
             <button key={k} role="tab" aria-selected={focus === k} className={focus === k ? 'on' : ''} onClick={() => setFocus(k)}>{label}</button>
           ))}
         </div>
@@ -131,7 +153,7 @@ export default function Dashboard() {
           {needs.map((n, i) => n.to
             ? <Link key={i} to={n.to} className={`chip ${n.tone === 'watch' ? 'warning' : 'opportunity'}`} style={{ textDecoration: 'none' }}>{n.label} →</Link>
             : <button key={i} className="chip pass" style={{ border: 'none', cursor: 'pointer' }}
-                onClick={() => { if (focus === 'ads') setFocus('all'); }}>{n.label} ↓</button>)}
+                onClick={() => { if (focus === 'search') setFocus('all'); }}>{n.label} ↓</button>)}
         </div>
       )}
       {needs.length === 0 && !adsLoading && outreach && (
@@ -141,7 +163,7 @@ export default function Dashboard() {
       )}
 
       {showAds && (
-        <Section id="ads" title="Paid search"
+        <Section id="ads" title="Search"
           right={conns.length > 1 && (
             <select style={{ width: 'auto' }} value={connId || ''} onChange={(e) => setConnId(e.target.value)}>
               {conns.map((x) => <option key={x.id} value={x.id}>{x.descriptive_name || x.customer_id}</option>)}
@@ -154,7 +176,7 @@ export default function Dashboard() {
                 : 'Connect one and Clarify pulls your last 30 days immediately.'}
               {!supportView && <div style={{ marginTop: 14 }}><Link className="btn primary" style={{ textDecoration: 'none' }} to="/onboarding">Connect Google Ads</Link></div>}
             </Empty>
-          ) : adsLoading ? <Spinner /> : !snaps.length ? (
+          ) : adsLoading ? <><div className="grid"><SkCard /><SkCard /><SkCard /><SkCard /></div><div className="section"><SkLine w="w40" /><SkLine /><SkLine w="w60" /></div></> : !snaps.length ? (
             <Empty title="First sync is running" compact>Give it a couple of minutes, then refresh. Your last 30 days are on the way.</Empty>
           ) : (
             <>
@@ -162,11 +184,30 @@ export default function Dashboard() {
                 {conn?.descriptive_name || conn?.customer_id} · synced {timeAgo(conn?.last_synced_at)}
                 {conn?.status === 'error' && <span style={{ color: 'var(--act)' }}> · last sync failed</span>}
               </div>
-              <div className="grid">
-                <Card label="Spend this month" big={usd(m.mtd)} verdict={m.paceVerdict} />
-                <Card label="Cost per customer (7d)" big={m.cpa7 != null ? usdN(m.cpa7) : '—'} verdict={m.cpaVerdict} />
-                <Card label="Conversions this week" big={num(m.conv7)} verdict={m.convVerdict} />
-                <Card label="Wasted spend (30d)" big={usd(m.wasted)} verdict={m.wasteVerdict} />
+              <div className="inst" style={{ margin: '6px 0 4px', paddingBottom: 24 }}>
+                <Ring score={inst.paidScore} channel="paid" cap="Paid" size={84} />
+                <Ring score={inst.orgScore} channel="organic" cap="Organic" size={84} />
+                <div className="divider" />
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <p className="muted" style={{ margin: 0 }}>
+                    Clicks you <span style={{ color: 'var(--paid)' }}>buy</span> and clicks you{' '}
+                    <span style={{ color: 'var(--org)' }}>earn</span>, scored on the same scale.{' '}
+                    <Link to="/audit" style={{ color: 'var(--clarity)' }}>Open the audit →</Link>
+                    {inst.pipeline > 0 && (
+                      <> · <span className="mono" style={{ color: 'var(--paid)' }}>{usd(Math.round(inst.pipeline * 1e6))}</span>/mo of organic demand identified — <Link to="/playbook" style={{ color: 'var(--org)' }}>open the Playbook →</Link></>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="grid stagger">
+                <Card label="Spend this month" big={<Num v={Math.round(m.mtd / 1e6)} f={(x) => `$${x.toLocaleString('en-US')}`} />} verdict={m.paceVerdict} />
+                <Card label="Cost per customer (7d)" big={m.cpa7 != null ? <Num v={Math.round(m.cpa7)} f={(x) => `$${x.toLocaleString('en-US')}`} /> : '—'} verdict={m.cpaVerdict} />
+                <Card label="Conversions this week" big={<Num v={m.conv7} />} verdict={m.convVerdict} />
+                <Card label="Wasted spend (30d)" big={<Num v={Math.round(m.wasted / 1e6)} f={(x) => `$${x.toLocaleString('en-US')}`} />} verdict={m.wasteVerdict} />
+                {inst.gscClicks != null && (
+                  <Card label="Clicks earned (28d)" big={<Num v={inst.gscClicks} />}
+                    verdict={{ tone: 'good', text: 'organic clicks — the ones you never pay for' }} />
+                )}
               </div>
 
               <div style={{ marginTop: 4 }}>
@@ -183,14 +224,14 @@ export default function Dashboard() {
                   <ResponsiveContainer>
                     <ComposedChart data={m.daily.slice(-range)} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke="var(--line)" vertical={false} />
-                      <XAxis dataKey="d" tickFormatter={dayLabel} tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} />
-                      <YAxis yAxisId="spend" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} width={46} />
-                      <YAxis yAxisId="conv" orientation="right" tick={{ fontSize: 11, fill: '#6f7489' }} tickLine={false} axisLine={false} width={30} />
+                      <XAxis dataKey="d" tickFormatter={dayLabel} tick={{ fontSize: 11, fill: '#6e7387' }} tickLine={false} axisLine={false} />
+                      <YAxis yAxisId="spend" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11, fill: '#6e7387' }} tickLine={false} axisLine={false} width={46} />
+                      <YAxis yAxisId="conv" orientation="right" tick={{ fontSize: 11, fill: '#6e7387' }} tickLine={false} axisLine={false} width={30} />
                       <Tooltip labelFormatter={dayLabel} formatter={(v, name) => name === 'Spend' ? [usdN(v), name] : [v, name]}
-                        contentStyle={{ background: '#0f1119', border: '1px solid rgba(255,255,255,.14)', borderRadius: 10, color: '#f4f2ea' }}
+                        contentStyle={{ background: '#11131b', border: '1px solid rgba(255,255,255,.14)', borderRadius: 10, color: '#f4f2ea' }}
                         labelStyle={{ color: '#a6aabc' }} itemStyle={{ color: '#f4f2ea' }} />
-                      <Area yAxisId="spend" type="monotone" dataKey="spend" name="Spend" stroke="var(--clarity)" fill="var(--clarity-soft)" strokeWidth={2} />
-                      <Line yAxisId="conv" type="monotone" dataKey="conv" name="Conversions" stroke="var(--info)" strokeWidth={2} dot={false} />
+                      <Area yAxisId="spend" type="monotone" dataKey="spend" name="Spend" stroke="var(--paid)" fill="var(--paid-soft)" strokeWidth={2} />
+                      <Line yAxisId="conv" type="monotone" dataKey="conv" name="Conversions" stroke="var(--org)" strokeWidth={2} dot={false} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -236,10 +277,12 @@ export default function Dashboard() {
         </Section>
       )}
 
+      {showAds && <StrategistBrief orgId={effectiveOrgId} supportView={supportView} />}
+
       {showOutreach && (
         <Section id="pipeline" title="Outreach pipeline"
           right={<span className="faint mono">{creditsLeft} discovery credits left</span>}>
-          {!outreach ? <Spinner /> : !outreach.total && !outreach.tasks.length ? (
+          {!outreach ? <div><SkLine w="w60" /><SkLine /><SkLine w="w80" /></div> : !outreach.total && !outreach.tasks.length ? (
             <Empty title="No pipeline yet" compact>
               Discover leads, put them in a sequence, and this becomes the other half of your morning.
               <div style={{ marginTop: 14 }}><Link className="btn primary" style={{ textDecoration: 'none' }} to="/discover">Find leads</Link></div>
@@ -439,4 +482,62 @@ function compute(snaps, terms) {
     }));
 
   return { daily, mtd, pace, paceVerdict, cpa7, cpaVerdict, conv7, convVerdict, wasted, wasteVerdict, chartTone, chartLine, movers };
+}
+
+
+// ---------- AI Strategist Brief ----------
+// Cross-channel action plan written by the model, steered by Clarify's tuned
+// weights and analyst notes, and locked to audit evidence — never invention.
+function StrategistBrief({ orgId, supportView }) {
+  const [brief, setBrief] = useState(undefined);   // undefined loading | null none | row
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    if (!orgId) return;
+    supabase.from('ai_briefs').select('*').eq('org_id', orgId)
+      .order('created_at', { ascending: false }).limit(1)
+      .then(({ data }) => setBrief(data?.[0] || null));
+  }, [orgId]);
+
+  const generate = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const res = await api('ai-brief', { method: 'POST', body: {} });
+      setBrief({ brief_md: res.brief_md, model_version: res.model_version, created_at: res.created_at || new Date().toISOString() });
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  };
+
+  if (brief === undefined) return null;
+  return (
+    <div className="brief" style={{ margin: '16px 0' }}>
+      <div className="row-between">
+        <h2 style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          Strategist brief <span className="faint" style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 14 }}>both channels, one plan</span>
+        </h2>
+        <button className="btn small primary" disabled={busy || supportView} onClick={generate}>
+          {busy ? 'Reading the audits…' : brief ? 'Refresh brief' : 'Generate brief'}
+        </button>
+      </div>
+      {err && <div className="banner err" style={{ marginTop: 10 }}>{err}</div>}
+      {!brief && !err && (
+        <p className="muted" style={{ margin: '10px 0 2px' }}>
+          Run an audit on either channel, then generate a brief — a written plan across paid and organic, grounded in the findings and tuned by Clarify's model weights.
+        </p>
+      )}
+      {brief && (
+        <div style={{ marginTop: 10 }}>
+          <Md text={brief.brief_md} />
+          <div className="provenance">
+            <span>Clarify model v{brief.model_version || 1}</span>
+            <span>·</span>
+            <span>evidence-locked: numbers come from your audits, nowhere else</span>
+            <span>·</span>
+            <span>{timeAgo(brief.created_at)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

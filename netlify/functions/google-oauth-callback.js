@@ -25,6 +25,40 @@ exports.handler = async (event) => {
   if (!res.ok || !tok.refresh_token) return redirect(`${app}/onboarding?error=token_exchange`);
 
   const db = admin();
+
+  // ---- Search Console branch: store the token, auto-pick the property that matches
+  // the org's crawled site, kick off the first query sync, land on the organic tab. ----
+  if (st.product === 'gsc') {
+    try {
+      const at = await refreshAccessToken(tok.refresh_token);
+      const sitesRes = await fetch('https://searchconsole.googleapis.com/webmasters/v3/sites', {
+        headers: { Authorization: `Bearer ${at}` },
+      });
+      const sitesData = await sitesRes.json();
+      const sites = (sitesData.siteEntry || []).filter((s) => s.permissionLevel !== 'siteUnverifiedUser').map((s) => s.siteUrl);
+      const { data: props } = await db.from('organic_properties').select('site_url').eq('org_id', st.org_id).limit(1);
+      const host = props?.[0]?.site_url ? new URL(props[0].site_url).hostname.replace(/^www\./, '') : null;
+      const match = host ? sites.find((s) => s.includes(host)) : null;
+      const { data: gconn, error: ge } = await db.from('gsc_connections').insert({
+        org_id: st.org_id, connected_by: st.uid,
+        refresh_token_ciphertext: encrypt(tok.refresh_token),
+        site_url: match || sites[0] || null,
+        status: sites.length ? 'active' : 'error',
+        status_detail: sites.length ? null : 'No verified Search Console properties on this Google account.',
+      }).select().single();
+      if (ge) return redirect(`${app}/audit?tab=organic&error=save_failed`);
+      if (gconn.site_url) {
+        fetch(`${process.env.APP_URL}/.netlify/functions/gsc-sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SYNC_SECRET },
+          body: JSON.stringify({ connection_id: gconn.id }),
+        }).catch(() => {});
+      }
+      return redirect(`${app}/audit?tab=organic&gsc=connected`);
+    } catch {
+      return redirect(`${app}/audit?tab=organic&error=gsc_failed`);
+    }
+  }
   const accessToken = await refreshAccessToken(tok.refresh_token);
   let cids = [];
   try { cids = await listAccessibleCustomers(accessToken); } catch { /* fall through to pending */ }

@@ -1,8 +1,10 @@
 // Clarify audit engine — deterministic rules, no LLM in the numbers path.
 // CONTRACT: every finding builds `evidence` FIRST ({window, formula, inputs, result}),
 // then the plain-English summary interpolates ONLY evidence values. Narrative cannot drift from math.
+// Thresholds and scoring weights come from model settings (admin-tunable); the
+// constants below are the shipped defaults, kept so existing callers never break.
 
-const SMART_BIDDING_MIN_CONV_30D = 30; // locked in with Cameron
+const SMART_BIDDING_MIN_CONV_30D = 30; // default; tunable via model settings
 
 const usd = (micros) => `$${(Number(micros || 0) / 1e6).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 const usdN = (n) => `$${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -61,7 +63,7 @@ function ruleConversionTracking(a) {
 }
 
 function ruleSearchTermWaste(a) {
-  const qualifying = a.terms.filter((t) => Number(t.clicks) >= 5 && Number(t.conversions) === 0);
+  const qualifying = a.terms.filter((x) => Number(x.clicks) >= a.t.wasteMinClicks && Number(x.conversions) === 0);
   const wasted = qualifying.reduce((s, t) => s + Number(t.cost_micros || 0), 0);
   const searchSpend = a.terms.reduce((s, t) => s + Number(t.cost_micros || 0), 0) || 1;
   const share = wasted / searchSpend;
@@ -69,15 +71,15 @@ function ruleSearchTermWaste(a) {
     .map((t) => ({ term: t.term, cost: usd(t.cost_micros), clicks: t.clicks }));
   const evidence = {
     window: 'Last 30 days',
-    formula: 'wasted = Σ cost of search terms with clicks ≥ 5 AND conversions = 0; share = wasted ÷ total search-term spend',
+    formula: `wasted = Σ cost of search terms with clicks ≥ ${a.t.wasteMinClicks} AND conversions = 0; share = wasted ÷ total search-term spend`,
     inputs: { qualifying_terms: qualifying.length, total_search_term_spend: usd(searchSpend) },
     result: { wasted_spend: usd(wasted), share_of_spend: pct(share), top_offenders: top },
   };
-  const sev = share > 0.15 ? 'critical' : share > 0.07 ? 'warning' : wasted > 0 ? 'opportunity' : 'pass';
+  const sev = share > a.t.wasteCritical ? 'critical' : share > a.t.wasteWarning ? 'warning' : wasted > 0 ? 'opportunity' : 'pass';
   return f('search_term_waste', sev, sev === 'pass' ? 'Search spend is landing on searches that convert' : `${evidence.result.wasted_spend} went to searches that never convert`,
     sev === 'pass'
       ? `We didn't find meaningful spend on repeat-click, zero-conversion searches in the last 30 days.`
-      : `${evidence.result.wasted_spend} of your last 30 days of search spend (${evidence.result.share_of_spend}) went to ${qualifying.length} searches that people clicked at least 5 times without a single one converting. That's money buying clicks, not customers.`,
+      : `${evidence.result.wasted_spend} of your last 30 days of search spend (${evidence.result.share_of_spend}) went to ${qualifying.length} searches that people clicked repeatedly without a single one converting. That's money buying clicks, not customers.`,
     sev === 'pass' ? null : 'Add the top offenders as negative keywords. This is usually the fastest real savings in any account.', evidence);
 }
 
@@ -88,19 +90,19 @@ function ruleMatchType(a) {
   const negs = (a.structure.negatives_campaign || 0) + (a.structure.negatives_adgroup || 0);
   const smartWithData = a.campaigns.some((c) =>
     ['TARGET_CPA', 'TARGET_ROAS', 'MAXIMIZE_CONVERSIONS', 'MAXIMIZE_CONVERSION_VALUE'].includes(c.bidding) &&
-    c.conversions >= SMART_BIDDING_MIN_CONV_30D);
+    c.conversions >= a.t.smartBiddingMin);
   const evidence = {
     window: 'Last 30 days',
-    formula: `risk if broad-match spend share > 40% AND (negatives < 50 OR no Smart Bidding campaign with ≥ ${SMART_BIDDING_MIN_CONV_30D} conversions/30d)`,
+    formula: `risk if broad-match spend share > ${Math.round(a.t.broadFlag * 100)}% AND (negatives < 50 OR no Smart Bidding campaign with ≥ ${a.t.smartBiddingMin} conversions/30d)`,
     inputs: { broad_match_spend: usd(broadSpend), broad_share: pct(broadShare), negative_keywords: negs, smart_bidding_with_sufficient_data: smartWithData },
-    result: { broad_match_risk: broadShare > 0.4 && (negs < 50 || !smartWithData) },
+    result: { broad_match_risk: broadShare > a.t.broadFlag && (negs < 50 || !smartWithData) },
   };
   if (evidence.result.broad_match_risk) {
     return f('match_type', 'critical', 'Broad match is running without a safety net',
       `${evidence.inputs.broad_share} of your keyword spend (${evidence.inputs.broad_match_spend}) is on broad match, with only ${negs} negative keywords${smartWithData ? '' : ' and no automated bidding backed by enough conversion data'}. Broad match without tight automated bidding and strong negative hygiene isn't a strategy — it's handing Google a blank check.`,
       'Either tighten to phrase/exact on the biggest spenders, or keep broad only where Smart Bidding has real conversion volume — and build the negative list either way.', evidence);
   }
-  if (broadShare > 0.4) {
+  if (broadShare > a.t.broadFlag) {
     return f('match_type', 'warning', 'Heavy broad match — watch it closely',
       `${evidence.inputs.broad_share} of keyword spend is broad match. Your negative list (${negs}) and conversion-fed bidding are currently the only things keeping it honest. That's workable, but it needs weekly search-term review, not trust.`,
       'Keep a weekly cadence on the search-terms report while broad share stays this high.', evidence);
@@ -111,21 +113,21 @@ function ruleMatchType(a) {
 
 function ruleSmartBiddingPrematurity(a) {
   const flagged = a.campaigns.filter((c) =>
-    ['TARGET_CPA', 'TARGET_ROAS'].includes(c.bidding) && c.conversions < SMART_BIDDING_MIN_CONV_30D && c.cost > 0)
+    ['TARGET_CPA', 'TARGET_ROAS'].includes(c.bidding) && c.conversions < a.t.smartBiddingMin && c.cost > 0)
     .map((c) => ({ campaign: c.name, strategy: c.bidding, conversions_30d: Math.round(c.conversions), spend: usd(c.cost) }));
   const evidence = {
     window: 'Last 30 days',
-    formula: `flag campaigns on Target CPA/ROAS with < ${SMART_BIDDING_MIN_CONV_30D} conversions in 30 days`,
-    inputs: { threshold: SMART_BIDDING_MIN_CONV_30D, campaigns_checked: a.campaigns.length },
+    formula: `flag campaigns on Target CPA/ROAS with < ${a.t.smartBiddingMin} conversions in 30 days`,
+    inputs: { threshold: a.t.smartBiddingMin, campaigns_checked: a.campaigns.length },
     result: { premature_smart_bidding: flagged },
   };
   if (flagged.length) {
     return f('smart_bidding', 'warning', `${flagged.length} campaign${flagged.length > 1 ? 's are' : ' is'} asking the algorithm to learn from too little data`,
-      `${flagged.map((x) => `"${x.campaign}"`).join(', ')} ${flagged.length > 1 ? 'are' : 'is'} on ${flagged[0].strategy.replace('_', ' ')} with under ${SMART_BIDDING_MIN_CONV_30D} conversions a month. Smart Bidding isn't magic — below that volume it's guessing with your money.`,
+      `${flagged.map((x) => `"${x.campaign}"`).join(', ')} ${flagged.length > 1 ? 'are' : 'is'} on ${flagged[0].strategy.replace('_', ' ')} with under ${a.t.smartBiddingMin} conversions a month. Smart Bidding isn't magic — below that volume it's guessing with your money.`,
       'Consolidate conversion volume (merge campaigns or broaden the conversion action) before trusting Target CPA/ROAS, or switch to Maximize Clicks / manual while volume builds.', evidence);
   }
   return f('smart_bidding', 'pass', 'Smart Bidding has enough data where it\'s used',
-    `No campaign is running Target CPA/ROAS below the ${SMART_BIDDING_MIN_CONV_30D}-conversion monthly threshold.`, null, evidence);
+    `No campaign is running Target CPA/ROAS below the ${a.t.smartBiddingMin}-conversion monthly threshold.`, null, evidence);
 }
 
 function rulePmax(a) {
@@ -136,7 +138,7 @@ function rulePmax(a) {
 
   const pmaxCost = pmax.reduce((s, c) => s + c.cost, 0);
   const share = pmaxCost / (a.totals.cost || 1);
-  const starving = pmax.filter((c) => c.conversions < SMART_BIDDING_MIN_CONV_30D)
+  const starving = pmax.filter((c) => c.conversions < a.t.smartBiddingMin)
     .map((c) => ({ campaign: c.name, conversions_30d: Math.round(c.conversions), spend: usd(c.cost) }));
 
   // brand cannibalization signal: brand search impressions down while PMax spend up (first vs second half of window)
@@ -160,7 +162,7 @@ function rulePmax(a) {
 
   const evidence = {
     window: 'Last 30 days (halves compared for trend)',
-    formula: `starvation: PMax campaign with < ${SMART_BIDDING_MIN_CONV_30D} conv/30d. Cannibalization signal: brand search impressions down >25% while PMax spend up >15%. Note: the API does not expose whether brand exclusions are applied — verify in the UI.`,
+    formula: `starvation: PMax campaign with < ${a.t.smartBiddingMin} conv/30d. Cannibalization signal: brand search impressions down >25% while PMax spend up >15%. Note: the API does not expose whether brand exclusions are applied — verify in the UI.`,
     inputs: { pmax_campaigns: pmax.length, pmax_spend: usd(pmaxCost), pmax_share_of_spend: pct(share), brand_campaigns_detected: brandCamps.length, trend: cannibal },
     result: { data_starved: starving, cannibalization_signal: !!cannibalFlag },
   };
@@ -171,7 +173,7 @@ function rulePmax(a) {
   }
   if (starving.length) {
     return f('pmax', 'warning', 'PMax is running on starvation-level data',
-      `${starving.map((s) => `"${s.campaign}"`).join(', ')} converted fewer than ${SMART_BIDDING_MIN_CONV_30D} times in 30 days. PMax with thin conversion data doesn't optimize — it wanders. It's ${evidence.inputs.pmax_share_of_spend} of your total spend right now.`,
+      `${starving.map((s) => `"${s.campaign}"`).join(', ')} converted fewer than ${a.t.smartBiddingMin} times in 30 days. PMax with thin conversion data doesn't optimize — it wanders. It's ${evidence.inputs.pmax_share_of_spend} of your total spend right now.`,
       'Consolidate asset groups, feed it a higher-volume conversion action, or cap its budget until it has data to learn from. And confirm brand exclusions are applied — the API can\'t verify that for you.', evidence);
   }
   return f('pmax', 'opportunity', 'PMax is fed — keep it fenced',
@@ -321,15 +323,25 @@ function f(category, severity, title, summary, recommendation, evidence) {
 
 const SEVERITY_WEIGHT = { critical: 18, warning: 8, opportunity: 3, pass: 0 };
 
-function runAudit(data) {
+function runAudit(data, weights) {
+  const sevW = { ...SEVERITY_WEIGHT, ...(weights?.severity || {}) };
+  const catW = weights?.categories?.paid || {};
+  const t = weights?.thresholds || {};
   const a = buildAccount(data);
+  a.t = {
+    smartBiddingMin: t.smart_bidding_min_conv_30d ?? SMART_BIDDING_MIN_CONV_30D,
+    wasteMinClicks: t.waste_min_clicks ?? 5,
+    wasteCritical: t.waste_share_critical ?? 0.15,
+    wasteWarning: t.waste_share_warning ?? 0.07,
+    broadFlag: t.broad_share_flag ?? 0.4,
+  };
   const findings = [
     ruleConversionTracking(a), ruleSearchTermWaste(a), ruleMatchType(a),
     ruleSmartBiddingPrematurity(a), rulePmax(a), ruleNegatives(a),
     ruleBudgetPacing(a), ruleStructure(a), ruleQualityScore(a), ruleAdCopy(a),
   ].filter(Boolean);
-  const penalty = findings.reduce((s, x) => s + SEVERITY_WEIGHT[x.severity], 0);
-  const score = Math.max(5, 100 - penalty);
+  const penalty = findings.reduce((s, x) => s + (sevW[x.severity] || 0) * (catW[x.category] ?? 1), 0);
+  const score = Math.max(5, Math.round(100 - penalty));
   const order = { critical: 0, warning: 1, opportunity: 2, pass: 3 };
   findings.sort((x, y) => order[x.severity] - order[y.severity]);
   findings.forEach((x, i) => (x.sort_order = i));

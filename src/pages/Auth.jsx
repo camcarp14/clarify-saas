@@ -32,9 +32,12 @@ export default function Auth() {
   return (
     <div className="auth-wrap">
       <div className="auth-card fade-in">
-        <div className="brand" style={{ padding: 0, fontSize: 24 }}>Clari<em style={{ color: 'var(--clarity)', fontStyle: 'normal' }}>fy</em></div>
+        <div className="brand" style={{ padding: 0 }}>
+          <span className="bars" aria-hidden="true"><i /><i /></span>
+          <span className="word"><strong>Clarify</strong><span>SEARCH</span></span>
+        </div>
         <p className="muted" style={{ margin: 0 }}>
-          {mode === 'signup' ? 'See what your Google Ads money is actually doing.' : 'Welcome back.'}
+          {mode === 'signup' ? 'The clicks you buy and the clicks you earn — one honest scorecard.' : 'Welcome back.'}
         </p>
         {mode === 'signup' && (
           <>

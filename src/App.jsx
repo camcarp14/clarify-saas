@@ -6,6 +6,9 @@ import Auth from './pages/Auth';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import AuditReport from './pages/AuditReport';
+import Playbook from './pages/Playbook';
+import CommandK from './components/CommandK';
+import { ToastProvider } from './components/ui';
 import Alerts from './pages/Alerts';
 import Discover from './pages/Discover';
 import Leads from './pages/Leads';
@@ -67,11 +70,13 @@ export default function App() {
     );
   }
   return (
+    <ToastProvider>
     <Shell>
       <Routes>
         <Route path="/" element={isAdmin && !supportView ? <Navigate to="/admin/orgs" replace /> : <Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/audit" element={<AuditReport />} />
+        <Route path="/playbook" element={<Playbook />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/discover" element={<Discover />} />
         <Route path="/leads" element={<Leads />} />
@@ -83,6 +88,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Shell>
+    </ToastProvider>
   );
 }
 
@@ -123,14 +129,17 @@ function Shell({ children }) {
     <div className="shell">
       <nav className="rail">
         <div className="rail-bar">
-          <div className="brand">Clari<em>fy</em></div>
+          <div className="brand">
+            <span className="bars" aria-hidden="true"><i /><i /></span>
+            <span className="word"><strong>Clarify</strong><span>SEARCH</span></span>
+          </div>
           <button className="rail-toggle" aria-label="Menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
             {menuOpen ? '✕' : '☰'}
           </button>
         </div>
         <div className={`rail-links${menuOpen ? ' open' : ''}`}>
           <NavLink to="/dashboard" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Today</NavLink>
-          <div className="rail-label">Paid search</div>
+          <div className="rail-label">Search</div>
           <NavLink to="/audit" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Audit</NavLink>
           <NavLink to="/alerts" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Alerts</NavLink>
           <div className="rail-label">Outreach</div>
@@ -144,12 +153,16 @@ function Shell({ children }) {
           <NavLink to="/settings" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Settings</NavLink>
           {isAdmin && <NavLink to="/admin/orgs" onClick={close} className={({ isActive }) => (isActive ? 'active' : '')}>Admin console</NavLink>}
           <div className="spacer" />
-          <div className="faint" style={{ padding: '0 10px' }}>{profile?.email}</div>
+          <div className="faint" style={{ padding: '0 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.email}</span>
+            <span title="Command palette" style={{ flex: 'none' }}><kbd>⌘K</kbd></span>
+          </div>
           <a href="#signout" onClick={(e) => { e.preventDefault(); close(); signOut(); }}>Sign out</a>
         </div>
         {menuOpen && <div className="rail-backdrop" onClick={close} />}
       </nav>
-      <main className="main fade-in">
+      <CommandK isAdmin={!!profile?.is_clarify_admin} />
+      <main className="main">
         {supportView && (
           <div className="banner admin">
             <span>Support view: <strong>{viewAsName}</strong> — read-only</span>
